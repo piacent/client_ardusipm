@@ -2,7 +2,7 @@
 Python scripts for ArduSiPM mqtt client
 
 The main client (whih manages all things related to DAQ
-for ArduSiPMs) il pyclient.py.
+for ArduSiPMs) is pyclient.py.
 
 The script converter.py is a utility script to convert
 raw data logfile as blu.TXT and rossa.TXT into a
