@@ -35,8 +35,6 @@ import time
 import sys
 import os
 
-# test for git
-
 # Global variables for handling disconnection (be careful in changing
 # what regards this variables) or leap seconds
 test_disconnection = True
