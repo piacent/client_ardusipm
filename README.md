@@ -36,7 +36,7 @@ https://www.facebook.com/groups/ardusipm/
 
 
 ### Technical details
-The main client (whih manages all things related to DAQ
+The main client (which manages all things related to DAQ
 for ArduSiPMs) is pyclient.py.
 
 The script converter.py is a utility script to convert
@@ -45,7 +45,7 @@ processed data file (e.g. looking for coincidens and so on).
 
 The scripts pytriggerblu.py, pytriggerrossa.py, sendeblu.py,
 and senderrossa.py are intended to be for testing (more info in
-the files themselves)
+the files themselves).
 
 **N.B**. All the script are tested only on Linux OS  (Ubuntu 18)
 for now. Currently, for testing, it will connect to the public mqtt broker
