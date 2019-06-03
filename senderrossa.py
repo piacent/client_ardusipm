@@ -77,7 +77,7 @@ time.sleep(1)
 #Check message
 client.publish("daqardusipm/pyclient_task", "start_daq ARDU_ROSSA")
 
-file_path = "/home/stefano/Scrivania/ProgettoBocci/testlogfiles/rossa.TXT"
+file_path = "rossa.TXT"
 l=file_len(file_path)
 
 i_cont=0
