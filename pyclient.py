@@ -47,7 +47,7 @@ def update_leap():
 	print("\nUpdating leap seconds...")
 	link = "ftp://ftp.nist.gov/pub/time/leap-seconds.list"
 	f = urllib.request.urlopen(link)
-	global leap_seconds
+	global leap_second
 	for line in f:
 		text = line.decode("utf-8")
 		if "expires on" in text:
