@@ -83,7 +83,7 @@ def time_togps(string):
 	m = int(utc[8]+utc[9])
 	s = int(utc[10]+utc[11])
 	utc = datetime.datetime(y, M, d, h, m, s)
-	return int(utc.strftime("%s"))-315964819+leap_seconds
+	return utc.timestamp()-315964819+leap_seconds
 
 def main(filelogA, filelogB, fileout, eps=100):
 	# Getting the SN of the two detectors
@@ -106,6 +106,7 @@ def main(filelogA, filelogB, fileout, eps=100):
 	# Parsing detector A
 	with open(filelogA, 'r') as filelogA:
 		for lineA in filelogA:
+			*tokens = lineA.split(',')
 			if '@O' in lineA:
 				nOA=nOA+1
 			if '$' in lineA and 'g' in lineA and 't' in lineA and nOA==ntrueOA:
