@@ -2,10 +2,11 @@
 ## Python scripts for ArduSiPM mqtt client
 
 ### Brief description
-This github page contains python programs developed Stefano Piacentini
-(Phd. student) to manage using mqtt protocol in order to let more
-ArduSiPMs communicate via wifi.
-
+This github page contains python programs developed by Stefano Piacentini
+(PhD. student) with the aim of letting more ArduSiPMs
+communicate via wifi with a sort of data center. This is done
+using the mqtt protocol and, in particular, the paho-mqtt python 
+library (https://pypi.org/project/paho-mqtt/).
 
 ArduSiPM is a small and cheap particle detector, instead of other cheap 
 radiation counter it is not use Geiger effect.  Thanks to new photon 
@@ -47,4 +48,5 @@ and senderrossa.py are intended to be for testing (more info in
 the files themselves)
 
 N.B. All the script are tested only on Linux OS  (Ubuntu 18)
-for now.
+for now. Currently, for testing, it will connect to the public mqtt broker
+broker.hivemq.com.
