@@ -40,15 +40,24 @@ import os
 test_disconnection = True
 uncorrect_task_out = "The task I'm receiving is not correct."
 leap_second  = 0
+time_expiration=[-1,-1,-1, False]
 
-#update leap_second
+# Update leap_seconds
 def update_leap():
 	print("\nUpdating leap seconds...")
 	link = "ftp://ftp.nist.gov/pub/time/leap-seconds.list"
 	f = urllib.request.urlopen(link)
-	global leap_second
+	global leap_seconds
 	for line in f:
 		text = line.decode("utf-8")
+		if "expires on" in text:
+			thrash, date = text.split(':  ')
+			date = date.replace('\n','')
+			day, month, year = date.split(' ')
+			time_expiration[0]=int(day)
+			time_expiration[1]=month[:3]
+			time_expiration[2]=int(year)
+			time_expiration[3]=True
 		if text[0]!='#':
 			a, b, *c = text.split('\t')
 	leap_second=int(b)
@@ -177,10 +186,16 @@ client.publish("daqardusipm/pyclient_task", "Client connected to broker.")
 # Waiting for disconnection input (one check per second)
 # It will also look for changing in
 # the global variable 'leap_second' every 3600 s:
-time_counter = -1
+
 while test_disconnection:
-	if time_counter==3600 or time_counter==-1:
+	if time_expiration[3]==False:
 		update_leap()
 		time_counter=0
+	else:
+		time_exp=datetime.datetime(time_expiration[2], time.strptime(time_expiration[1],'%b').tm_mon, time_expiration[0])
+		time_now=datetime.datetime.utcnow()
+		deltat=(time_now-time_exp).total_seconds()
+		# print(deltat) # DEBUG #
+		if(deltat>0):
+			update_leap()
 	time.sleep(1)
-	time_counter = time_counter + 1
