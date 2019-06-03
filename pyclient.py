@@ -190,7 +190,6 @@ client.publish("daqardusipm/pyclient_task", "Client connected to broker.")
 while test_disconnection:
 	if time_expiration[3]==False:
 		update_leap()
-		time_counter=0
 	else:
 		time_exp=datetime.datetime(time_expiration[2], time.strptime(time_expiration[1],'%b').tm_mon, time_expiration[0])
 		time_now=datetime.datetime.utcnow()
