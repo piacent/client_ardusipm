@@ -48,5 +48,6 @@ and senderrossa.py are intended to be for testing (more info in
 the files themselves).
 
 **N.B**. All the script are tested only on Linux OS  (Ubuntu 18)
-for now. Currently, for testing, it will connect to the public mqtt broker
+for now (although they seem to work also on other platforms).
+Currently, for testing, it will connect to the public mqtt broker
 *broker.hivemq.com.*
