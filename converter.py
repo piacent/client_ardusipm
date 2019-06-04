@@ -1,6 +1,6 @@
 #############################################################
 # Author: Stefano Piacentini (stefano.piacentini@hotmail.com)
-# Date:   03/06/2019
+# Date:   04/06/2019
 #############################################################
 
 
@@ -14,8 +14,10 @@
 # parameters you can edit a file "config.txt" containing
 # this lines:
 
-# nameofthelogfileA
-# nameofthelogfileB
+# numberoflogfiles
+# nameofthelogfile#1
+# nameofthelogfile#2
+#     [...]
 # nameoftheoutputfile
 # timewindow #for coincidences (in us)
 
@@ -24,27 +26,29 @@
 # =======================================================
 
 
-
-
-
 import datetime
 import urllib.request
+import re
 
-# Be careful in changing this global variable
-leap_seconds=0
+# Be careful in changing this global variables
+leap_second=0
+# token '$' MUST be the last token in this global vector
+tokens = ['g', 'G', 't', 'T', 'v', 's', 'S','K', '$']
+hexatokens = ['t', 'T', 'v'] 
 
-# Update leap_seconds
+
+# Update leap_second
 def update_leap():
 	print("\nUpdating leap seconds...")
 	link = "ftp://ftp.nist.gov/pub/time/leap-seconds.list"
 	f = urllib.request.urlopen(link)
-	global leap_seconds
+	global leap_second
 	for line in f:
 		text = line.decode("utf-8")
 		if text[0]!='#':
 			a, b, *c = text.split('\t')
-	leap_seconds=int(b)
-	print("Leap seconds updated: leap_seconds = "+str(leap_seconds)+" s")
+	leap_second=int(b)
+	print("Leap seconds updated: leap_second = "+str(leap_second)+" s")
 	
 
 # Function useful to determine when the detector time is set
@@ -70,11 +74,11 @@ def get_SN(filelog):
 
 # Functions useful for coincidences analysis
 def get_time(total,i):
-	return (total[i])[6]+0.000001*int((total[i])[2])
+	return (total[i])[-3]+0.000001*int((total[i])[2])
 def get_det(total, i):
-	return (total[i])[1]	
+	return (total[i])[-1]	
 def time_togps(string):
-	global leap_seconds
+	global leap_second
 	utc = string.replace('g', '')
 	y = int(utc[0]+utc[1])+2000
 	M = int(utc[2]+utc[3])
@@ -83,63 +87,134 @@ def time_togps(string):
 	m = int(utc[8]+utc[9])
 	s = int(utc[10]+utc[11])
 	utc = datetime.datetime(y, M, d, h, m, s)
-	return utc.timestamp()-315964819+leap_seconds
+	return int(utc.timestamp())-315964819+leap_second
 
-def main(filelogA, filelogB, fileout, eps=100):
-	# Getting the SN of the two detectors
-	nameofA=get_SN(filelogA)
-	nameofB=get_SN(filelogB)
-	if nameofA==None:
+# Functions for tokens handling
+def take_value_from(string):
+	global tokens
+	temp = '['
+	cont = 0
+	for tok in tokens:
+		if tok in string:
+			temp = temp + tok + ','
+			cont = cont + 1
+	temp = temp[:-1] + ']*'
+	if cont >= 1:
+		temp_vec = re.split(temp[:-1], string)
+		return temp_vec[0] 
+	elif '\n' in string:
+		return string.replace('\n', '')				
+def get_tokens_in(string):	
+	global tokens
+	val_tok = []
+	found_tok = []
+	if ('@' in string) or (string == '$0\n'):
+		return [None,None]
+	for tok in tokens:
+		if tok in string:
+			a,*b = string.split(tok)
+			for i in range(0, len(b)):
+				val = take_value_from(b[i])
+				val_tok.append(val)
+				found_tok.append(tok)
+	return [val_tok,found_tok]	
+def convert_to_decimal(value_tok, which_tok):
+	global hexatokens
+	temp = []
+	for i in range(0, len(value_tok)):
+		if which_tok[i] in hexatokens:
+			temp.append(str(int(value_tok[i], 16)))
+		else:
+			temp.append(value_tok[i])
+	return temp
+def token_occurance(which_tok, tok):
+	n = 0
+	for i in range(0, len(which_tok)):
+		if tok == which_tok[i]:
+			n=n+1
+	return n
+def take_tok_occurance(value_tok, which_tok, tok, n):
+	cont = 0
+	for i in range(0, len(value_tok)):
+		if tok == which_tok[i]:
+			cont = cont+1
+			if cont==n:
+				return value_tok[i]
+def take_n_event(which_tok):
+	n_occ = []
+	for tok in which_tok:
+		 n_occ.append(token_occurance(which_tok, tok))
+	return max(n_occ)
+
+def parse_detector(filelog):
+	nameofDet=get_SN(filelog)
+	if nameofDet==None:
 		raise Exception('ERROR. SN of detector A not found.')
-	if nameofB==None:
-		raise Exception('ERROR. SN of detector B not found.')
 	
 	# Preliminary stuff for parsing
-	nOA=0
-	nOB=0
+	nO=0
 	check=''
 	t_diff=''
-	ntrueOA=calc_oflag(filelogA)
-	ntrueOB=calc_oflag(filelogB)
+	ntrueO=calc_oflag(filelog)
 	total=[]
 	
-	# Parsing detector A
-	with open(filelogA, 'r') as filelogA:
-		for lineA in filelogA:
-			*tokens = lineA.split(',')
-			if '@O' in lineA:
-				nOA=nOA+1
-			if '$' in lineA and 'g' in lineA and 't' in lineA and nOA==ntrueOA:
-				year, *ts = lineA.split('t')
-				utc = int(year.replace('g', ''))
-				if len(ts) > 0:
-					ts[-1], final = ts[-1].split('$')
-					for t in ts:
-						t, v = t.split('v')
-						t = str(int(t, 16))
-						v = str(int(v, 16))
-						gps=time_togps(year)
-						total.append([year, nameofA, t, v, final, check, gps, t_diff])
-						
-        # Parsing detector B
-	with open(filelogB, 'r') as filelogB:
-		for lineB in filelogB:
-			if '@O' in lineB:
-				nOB=nOB+1
-			if '$' in lineB and 'g' in lineB and 't' in lineB and nOB==ntrueOB:
-				yearb, *tsb = lineB.split('t')
-				utcb = int(yearb.replace('g', ''))
-				if len(tsb) > 0:
-					tsb[-1], finalb = tsb[-1].split('$')
-					for tb in tsb:
-						tb, vb = tb.split('v')
-						tb = str(int(tb, 16))
-						vb = str(int(vb, 16))
-						gpsb=time_togps(yearb)
-						total.append([yearb, nameofB, tb, vb, finalb, check, gpsb, t_diff])
-	# Rearrange events by time
-	total.sort(key=lambda x: x[6]+0.000001*int(x[2]))
+	global tokens
+	
+	with open(filelog, 'r') as filelog:
+		for line in filelog:
+			if '@O' in line:
+				nO = nO+1
+			elif nO == ntrueO and (('g' in line) or ('G' in line)) and ('@' not in line) and ('$' in line):
+				# print(line.replace('\n', '')) # DEBUG #
+				value_tok, which_tok = get_tokens_in(line)
+				value_tok=convert_to_decimal(value_tok, which_tok)
+				# print(value_tok) # DEBUG #
+				if value_tok==None:
+					continue
+				else:
+					n_events = take_n_event(which_tok)
+					# print("n_events = ", n_events) #DEBUG#
+					if n_events!=0:
+						for i in range(0, n_events):
+							v = []
+							for tok in tokens:
+								if tok in which_tok:
+									n_occ = token_occurance(which_tok, tok)
+									# Provisional
+									if n_occ != n_events and n_occ!=1:
+										raise Exception('ERROR. Something is wrong in tokens structure.')
+									if n_occ>1:
+										v.append(take_tok_occurance(value_tok, which_tok, tok, i+1))
+									else:
+										v.append(take_tok_occurance(value_tok, which_tok, tok, 1))
+										
+								else:
+									v.append('-')
+							if v[0] != '-':
+								v.append(time_togps(v[0]))
+								v.append('')
+								v.append(nameofDet)
+							# print(v) # DEBUG #
+							if v[2]!= None and v[2]!='-':
+								total.append(v)
+							del v
+	return total					
 
+def main(filelog, fileout, eps, nDet):
+	# Getting the SN of the two detectors
+	global tokens
+	
+	nameofDet = []
+	total = []
+	for i in range(0,nDet):
+		nameofDet.append(get_SN(filelog[i]))
+		if nameofDet[i]==None:
+			raise Exception('ERROR. SN of detector '+str(i+1)+' not found.')
+		total = total + parse_detector(filelog[i])
+	
+	# Rearrange events by time
+	total.sort(key=lambda x: x[-3]+0.000001*int(x[2]))
+	
 	# Setting the width of the window in which to look for coincidences
 	width=20 # Lines
 	
@@ -152,15 +227,20 @@ def main(filelogA, filelogB, fileout, eps=100):
 				t_ij = get_time(total, j+i)
 				tdiff=abs(t_i-t_ij)
 				if tdiff<(eps*0.000001) and j!=0 and get_det(total,j+i)!=det_i:
-					(total[i])[5]=(total[i])[5]+'*'
-					(total[j+i])[5]=(total[j+i])[5]+'*'
-					(total[i])[7]=(total[i])[7]+',-'+str(int(round(tdiff*1000000,0)))
-					(total[j+i])[7]=(total[j+i])[7]+','+str(int(round(tdiff*1000000,0)))
+					(total[i])[-2]=(total[i])[-2]+',*'
+					(total[j+i])[-2]=(total[j+i])[-2]+',*'
+					(total[i])[-2]=(total[i])[-2]+',-'+str(int(round(tdiff*1000000,0)))
+					(total[j+i])[-2]=(total[j+i])[-2]+','+str(int(round(tdiff*1000000,0)))
 	
 	# Generating output file
 	ffileout=open(fileout, 'w')
 	for i in total:
-		ffileout.write('D,'+i[1]+','+i[0]+',GPS,'+str(i[6])+',t,'+i[2]+',v,'+i[3]+',$,'+ i[4].replace('\n','') + ','+i[5]+i[7]+'\n')
+		temp = ''
+		temp = temp + 'D,' + i[-1] + ',GPS,'+str(i[-3])
+		for j in range(0, len(tokens)):
+			temp = temp + ','+tokens[j]+','+i[j]
+		temp = temp + i[-2] + '\n'
+		ffileout.write(temp)
 	ffileout.close()
 
 
@@ -173,15 +253,17 @@ if __name__ == '__main__':
 	print("the events by occurrence time and looking for time ")
 	print("coincidences.\n")
 	print("========================================================\n")
-	filelogA = input("Insert the path of the .TXT file - DETECTOR A:")
-	filelogB = input("Insert the path of the .TXT file - DETECTOR B:")
+	nDet = int(input ("Insert the number of file to be converted:"))
+	filelog = []
+	for i in range(0, nDet):
+		filelog.append(input("Insert the path of the .TXT file #"+str(i+1)+":"))
 	fileout  = input("Insert the path of the output file:")
 	eps = input("Insert time window for coincidences in us:")
 	update_leap()
 	# Debug print
-	print(filelogA, filelogB, fileout, eps)
+	print(filelog, fileout, eps, nDet)
 	try:
-		main(filelogA, filelogB, fileout, int(eps))
+		main(filelog, fileout, int(eps), nDet)
 	except Exception as e:
 		print(e)
 	#input("Premi invio per chiudere questa finestra")
