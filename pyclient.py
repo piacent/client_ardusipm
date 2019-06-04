@@ -1,6 +1,6 @@
 #############################################################
 # Author: Stefano Piacentini (stefano.piacentini@hotmail.com)
-# Date:  03/06/2019
+# Date:  04/06/2019
 #############################################################
 
 
@@ -74,7 +74,7 @@ def time_togps(string):
 	m = int(utc[8]+utc[9])
 	s = int(utc[10]+utc[11])
 	utc = datetime.datetime(y, M, d, h, m, s)
-	return utc.timestamp()-315964819+leap_second
+	return int(utc.timestamp())-315964819+leap_second
 
 temp_vec = []
 
