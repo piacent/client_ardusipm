@@ -23,16 +23,23 @@
 
 # After this try run: $ python3 converter.py < config.txt
 
+# N. B.
+# If SN is not in the input files, the script will ask you for it.
+# So if you are using the "config.txt" you must add lines for each
+# file in which the SN is missing (in order).
+
 # =======================================================
 
 
 import datetime
 import urllib.request
 import re
+import sys
 
 # Be careful in changing this global variables
 leap_second=0
-# token '$' MUST be the last token in this global vector
+# If you have to add new tokens, add them before '$' 
+# and after the last token before '$' (the order MUST be this)
 tokens = ['g', 'G', 't', 'T', 'v', 's', 'S','K', '$']
 hexatokens = ['t', 'T', 'v'] 
 
@@ -59,18 +66,20 @@ def calc_oflag(filelogA):
 			if '@O' in line:
 				n=n+1
 	if n==0:
-		raise Exception('ERROR. Time setting in '+filelogA+' not found.')
+		print('\nWarning. Time setting in '+filelogA+' not found. All data will be taken into account.')
+		sys.stdout.flush()
 		
 	return n
 		
 # Function to get the detector SN 
 def get_SN(filelog):
+	SN = None
 	with open(filelog, 'r') as filelog:
 		for line in filelog:
 			if '@SN' in line:
 				temp, *ts = line.split('@SN')
-				return ts[-1].replace('\n', '')
-	return None
+				SN = ts[-1].replace('\n', '')
+	return SN
 
 # Functions useful for coincidences analysis
 def get_time(total,i):
@@ -89,7 +98,10 @@ def time_togps(utc):
 	return int(utc.timestamp())-315964819+leap_second
 
 # Functions for tokens handling
-def take_value_from(string):
+def take_value_from(string):   # Function useful for the function "get_token_in"
+			       # (print temp if you want to understand better it's behaviour,
+			       # however it uses regular expressions, you
+			       # can find documentation on https://docs.python.org/3/library/re.html)
 	global tokens
 	temp = '['
 	cont = 0
@@ -102,8 +114,13 @@ def take_value_from(string):
 		temp_vec = re.split(temp[:-1], string)
 		return temp_vec[0] 
 	elif '\n' in string:
-		return string.replace('\n', '')				
-def get_tokens_in(string):	
+		return string.replace('\n', '')
+	else:
+		return string		
+			
+def get_tokens_in(string):	# Function to convert the string to two list:
+				# + a list with all values
+				# + a list with all corrisponding tokens
 	global tokens
 	val_tok = []
 	found_tok = []
@@ -111,44 +128,83 @@ def get_tokens_in(string):
 		return [None,None]
 	for tok in tokens:
 		if tok in string:
+			#print(" tok = ", tok, end ='       ')
 			a,*b = string.split(tok)
+			#print(" b  =   ", b)
 			for i in range(0, len(b)):
 				val = take_value_from(b[i])
 				val_tok.append(val)
 				found_tok.append(tok)
+	#print(val_tok, "    ", found_tok)
 	return [val_tok,found_tok]	
-def convert_to_decimal(value_tok, which_tok):
+	
+def convert_to_decimal(value_tok, which_tok):       # Function returning converted decimal value
+						    # for hexa tokens
 	global hexatokens
 	temp = []
 	for i in range(0, len(value_tok)):
 		if which_tok[i] in hexatokens:
+			#print(value_tok[i], "  ", which_tok[i])
 			temp.append(str(int(value_tok[i], 16)))
 		else:
 			temp.append(value_tok[i])
 	return temp
-def token_occurance(which_tok, tok):
+	
+def token_occurrence(which_tok, tok):		# Function to get the occurrence of the token tok
+						# in a given decomposed line which_tok (that
+						# is to say how many times tok is in whick_tok)
 	n = 0
 	for i in range(0, len(which_tok)):
 		if tok == which_tok[i]:
 			n=n+1
 	return n
-def take_tok_occurance(value_tok, which_tok, tok, n):
+	
+def take_tok_occurrence(value_tok, which_tok, tok, n):      # Function to return the VALUE related to
+							    # the n-th occurrence of the token tok
 	cont = 0
 	for i in range(0, len(value_tok)):
 		if tok == which_tok[i]:
 			cont = cont+1
 			if cont==n:
-				return value_tok[i]
-def take_n_event(which_tok):
+				return value_tok[i]				
+				
+def take_n_event(which_tok):			# Number of events in a line is equivalent
+						# to the most frequent token (e.g. if I have
+						# 2 't' or 2 'T' i have 2 events; this is
+						# because '$' is not always the number of events
+						# and beacause '$' is not present in cosmic formatting
 	n_occ = []
 	for tok in which_tok:
-		 n_occ.append(token_occurance(which_tok, tok))
+		 n_occ.append(token_occurrence(which_tok, tok))
 	return max(n_occ)
+	
+def get_gsvalue(string):			# Function to get time values of a string
+	if (('s' in string) or ('S' in string)) and (('g' in string) or ('G' in string)):
+		g=None
+		s=None
+		value_tok, which_tok = get_tokens_in(string)
+		value_tok=convert_to_decimal(value_tok, which_tok)
+		for i in range(0, len(value_tok)):
+			if 'g' == which_tok[i]:
+				g=value_tok[i]
+			# G and g cannot be on the same line
+			if 'G' == which_tok[i]:
+				g=value_tok[i]
+			if 's' == which_tok[i]:
+				s=value_tok[i]
+			# S and s cannot be on the same line
+			if 'S' == which_tok[i]:
+				s=value_tok[i]
+		return [g,s]
+	else:
+		raise Exception("\nERROR. Something went wrong in get_sgline.") 
 
+# Function for file parsing
 def parse_detector(filelog):
 	nameofDet=get_SN(filelog)
 	if nameofDet==None:
-		raise Exception('ERROR. SN of detector A not found.')
+		sys.stdout.flush()
+		nameofDet = input("SN not found in file " + filelog +". Please insert the corrisponding SN: ")
 	
 	# Preliminary stuff for parsing
 	nO=0
@@ -156,65 +212,135 @@ def parse_detector(filelog):
 	t_diff=''
 	ntrueO=calc_oflag(filelog)
 	total=[]
+	first_g = False
+	gpstime=-1
+	s_line=-1
 	
 	global tokens
 	
 	with open(filelog, 'r') as filelog:
 		for line in filelog:
-			if '@O' in line:
-				nO = nO+1
-			elif nO == ntrueO and (('g' in line) or ('G' in line)) and ('@' not in line) and ('$' in line):
-				# print(line.replace('\n', '')) # DEBUG #
+		
+			# This is only for cosmic format stuff
+			if nO == ntrueO and (('S' in line) or ('s' in line)) and gpstime!=-1 and ('@' not in line):
+				
 				value_tok, which_tok = get_tokens_in(line)
 				value_tok=convert_to_decimal(value_tok, which_tok)
-				# print(value_tok) # DEBUG #
+				for i in range(0, len(value_tok)):
+					if 's' == which_tok[i]:
+						s_new = value_tok[i]
+					# S and s cannot be on the same line
+					if 'S' == which_tok[i]:
+						s_new = value_tok[i]
+				d = int(s_new)-int(s_line)
+				if d<0:
+					gpstime = gpstime + (60+d)
+				else: 
+					gpstime = gpstime + d
+					
+				
+				gpstime = gpstime + (int(s_new)-int(s_line))
+				
+				s_line=s_new
+				
+			if '@O' in line:
+				nO = nO+1	
+			
+			# This is for regular formatting
+			elif nO == ntrueO and (('g' in line) or ('G' in line)) and ('@' not in line) and ('$' in line):
+				
+				value_tok, which_tok = get_tokens_in(line)
+				value_tok=convert_to_decimal(value_tok, which_tok)
+				
 				if value_tok==None:
 					continue
 				else:
 					n_events = take_n_event(which_tok)
-					# print("n_events = ", n_events) #DEBUG#
+					
 					if n_events!=0:
 						for i in range(0, n_events):
 							v = []
 							for tok in tokens:
 								if tok in which_tok:
-									n_occ = token_occurance(which_tok, tok)
+									n_occ = token_occurrence(which_tok, tok)
 									# Provisional
 									if n_occ != n_events and n_occ!=1:
-										raise Exception('ERROR. Something is wrong in tokens structure.')
+										raise Exception('\nERROR. Something is wrong in tokens structure.')
 									if n_occ>1:
-										v.append(take_tok_occurance(value_tok, which_tok, tok, i+1))
+										v.append(take_tok_occurrence(value_tok, which_tok, tok, i+1))
 									else:
-										v.append(take_tok_occurance(value_tok, which_tok, tok, 1))
+										v.append(take_tok_occurrence(value_tok, which_tok, tok, 1))
 										
 								else:
 									v.append('-')
+							# Here is when the order in tokens is important
+							# Case g 
 							if v[0] != '-' and v[1] == '-':
 								v.append(time_togps(v[0]))
 								v.append('')
 								v.append(nameofDet)
+							# Case G
 							elif v[1] != '-' and v[0] == '-':
 								v.append(time_togps(v[1]))
 								v.append('')
 								v.append(nameofDet)
-							# print(v) # DEBUG #
+							# The line must have a t (regular format)
 							if v[2]!= None and v[2]!='-':
 								total.append(v)
 							del v
+							
+			# This is for cosmic formatting	
+			elif nO == ntrueO and 'K' in line and 'T' in line and (('S' in line) or ('s' in line)):
+				if 'g' in line and first_g == False:
+					first_g = True
+					g_line, s_line = get_gsvalue(line)
+					gpstime = time_togps(g_line)
+					
+				if first_g == True:
+					value_tok, which_tok = get_tokens_in(line)
+					value_tok=convert_to_decimal(value_tok, which_tok)
+					
+					if value_tok==None:
+						continue
+					n_events = take_n_event(which_tok)
+					if n_events!=0:
+						for i in range(0, n_events):
+							v = []
+							for tok in tokens:
+								if tok in which_tok:
+									n_occ = token_occurrence(which_tok, tok)
+									# Provisional
+									if n_occ != n_events and n_occ!=1:
+										raise Exception('\nERROR. Something is wrong in tokens structure.')
+									if n_occ>1:
+										v.append(take_tok_occurrence(value_tok, which_tok, tok, i+1))
+									else:
+										v.append(take_tok_occurrence(value_tok, which_tok, tok, 1))
+									
+								else:
+									v.append('-')
+							# Here is when the order in tokens is important
+							v[1] = str(gpstime)
+							v.append(gpstime)
+							v.append('')
+							v.append(nameofDet)
+							
+							v[2] = str(round(float(v[3])/float(v[7])*1000000.))
+							
+							if v[2]!= None and v[2]!='-':
+								total.append(v)
+							del v
+							
 	return total					
 
 def main(filelog, fileout, eps, nDet):
 	
 	global tokens
 	
-	nameofDet = []
 	total = []
 	
 	# Parsing files
 	for i in range(0,nDet):
-		nameofDet.append(get_SN(filelog[i]))
-		if nameofDet[i]==None:
-			raise Exception('ERROR. SN of detector '+str(i+1)+' not found.')
 		total = total + parse_detector(filelog[i])
 	
 	# Rearrange events by time
