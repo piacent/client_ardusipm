@@ -77,9 +77,8 @@ def get_time(total,i):
 	return (total[i])[-3]+0.000001*int((total[i])[2])
 def get_det(total, i):
 	return (total[i])[-1]	
-def time_togps(string):
+def time_togps(utc):
 	global leap_second
-	utc = string.replace('g', '')
 	y = int(utc[0]+utc[1])+2000
 	M = int(utc[2]+utc[3])
 	d = int(utc[4]+utc[5])
@@ -190,8 +189,12 @@ def parse_detector(filelog):
 										
 								else:
 									v.append('-')
-							if v[0] != '-':
+							if v[0] != '-' and v[1] == '-':
 								v.append(time_togps(v[0]))
+								v.append('')
+								v.append(nameofDet)
+							elif v[1] != '-' and v[0] == '-':
+								v.append(time_togps(v[1]))
 								v.append('')
 								v.append(nameofDet)
 							# print(v) # DEBUG #
