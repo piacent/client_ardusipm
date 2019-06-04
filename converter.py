@@ -201,11 +201,13 @@ def parse_detector(filelog):
 	return total					
 
 def main(filelog, fileout, eps, nDet):
-	# Getting the SN of the two detectors
+	
 	global tokens
 	
 	nameofDet = []
 	total = []
+	
+	# Parsing files
 	for i in range(0,nDet):
 		nameofDet.append(get_SN(filelog[i]))
 		if nameofDet[i]==None:
