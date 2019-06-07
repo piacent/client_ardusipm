@@ -8,15 +8,19 @@
 
 # To start a daq connection you must subscribe to:
 #	daqardusipm/pyclient_task
-# and publish a massage as follows (pay attention to the
-# blank space in the middle of the message):
+# and publish a massage as follows:
 #       start_daq nameoftheArduSiPM
 # A this point any message you want to be processed
 # must to be published under the topic:
 #	daqardusipm/nameoftheArduSiPM
 # (N.B. the DAQ will start only after the time 
 #  of the ArduSIPM will be set)
-# If you want to stop daq and disconnect the pyclient
+# If you want to stop daq you must subscribe to:
+#	daqardusipm/pyclient_task
+# and publish a massage as follows:
+#       end_daq nameoftheArduSiPM
+
+# If you want to disconnect the pyclient
 # you must to publish the message 'disconnect_client'
 # under the topic:
 #	daqardusipm/pyclient_task
@@ -76,6 +80,7 @@ def time_togps(string):
 	utc = datetime.datetime(y, M, d, h, m, s)
 	return int(utc.timestamp())-315964819+leap_second
 
+# Global vector, pay attention
 temp_vec = []
 
 # The callback for when the client receives a response from the server.
@@ -102,10 +107,14 @@ def on_message(client, userdata, msg):
     		print("Subscribed to daqardusipm/"+ardusipmtostart)
     		start_flag=False
     		for sublist in temp_vec:
+    			# If ardusipmtostart is already in temp_vec
     			if sublist[0]==ardusipmtostart:
     				start_flag=True
+    				index_to_start=temp_vec.index(sublist)
+    				temp_vec[index_to_start]=[ardusipmtostart, True]
+    		# If ardusipmtostart is not in temp_vec
     		if start_flag==False:
-    			temp_vec.append([ardusipmtostart, False])
+    			temp_vec.append([ardusipmtostart, True])
     		# print("yes") # DEBUG
     	elif text=="disconnect_client":
     	 	client.loop_stop()
@@ -119,7 +128,7 @@ def on_message(client, userdata, msg):
     		ardusipmtoend=(text.replace("end_daq", '')).replace(' ', '')
  		# If the client receives an end_daq task it must set 
  		# the daq flag of the ArduSiPM to False
-    		index_to_end=temp_vec([ardusipmtoend, True])
+    		index_to_end=temp_vec.index([ardusipmtoend, True])
     		temp_vec[index_to_end]=[ardusipmtoend, False]
     	elif text==uncorrect_task_out:
     		pass
@@ -130,40 +139,57 @@ def on_message(client, userdata, msg):
     	ardusipm=top.replace("daqardusipm/", '')
     	# The following is only to avoid taking data
     	# before the detector time setting 
-    	tmp_counter=-1
-    	for sublist in temp_vec:
-    		tmp_counter=tmp_counter+1
-    		if sublist[0]==ardusipm:
-    			break
-    	flag=(temp_vec[tmp_counter])[1]
-    	if '@O' in text:
-    		ind_temp=temp_vec.index([ardusipm, False])
-    		temp_vec[ind_temp]=[ardusipm, True]
+    	# Decomment if you want to wait for time setting
+    	#tmp_counter=-1
+    	#for sublist in temp_vec:
+    	#	tmp_counter=tmp_counter+1
+    	#	if sublist[0]==ardusipm:
+    	#		break
+    	
+    	#flag=(temp_vec[tmp_counter])[1]
+    	
+    	# For next upgrades: waiting for time setting
+    	# if '@O' in text:
+    	#	ind_temp=temp_vec.index([ardusipm, False])
+    	#	temp_vec[ind_temp]=[ardusipm, True]
+    	
     	# DECODING SCRIPT: it adds
     	# a line in a logfile (you can change it to save the line
     	# wherever you want) with the decoded ArduSiPM output
     	# If you follow the instruction in the comment at the
     	# beginning of the page, it will create a logfile for
     	# each ArduSiPM employed in DAQ, automatically.
-    	if '$' in text and 'g' in text and flag==True:
-    		year, *ts = text.split('t')
-    		if len(ts) > 0:
-    		      gps=str(time_togps(year))
-    		      logfile=open("log_test_"+ardusipm+".txt", "a+")
-    		      ts[-1], final = ts[-1].split('$')
-    		      for t in ts:
-                            t, v = t.split('v')
-                            t = str(int(t, 16))
-                            v = str(int(v, 16))
-                            logfile.write("D,{ardusipm},GPS,{gps},t,{t},v,{v},$,{final}".
-                                           format(
-                                                    ardusipm=ardusipm,
-                                                    gps=gps,
-                                                    t=t,
-                                                    v=v,
-                                                    final=final
-                                                ))
-    		      logfile.close()
+    	#if '$' in text and 'g' in text and flag==True:
+    	#	year, *ts = text.split('t')
+    	#	if len(ts) > 0:
+    	#	      gps=str(time_togps(year))
+    	#	      logfile=open("log_test_"+ardusipm+".txt", "a+")
+    	#	      ts[-1], final = ts[-1].split('$')
+    	#	      for t in ts:
+        #                    t, v = t.split('v')
+        #                    t = str(int(t, 16))
+        #                    v = str(int(v, 16))
+        #                    logfile.write("D,{ardusipm},GPS,{gps},t,{t},v,{v},$,{final}".
+        #                                   format(
+        #                                            ardusipm=ardusipm,
+        #                                            gps=gps,
+        #                                            t=t,
+        #                                            v=v,
+        #                                            final=final
+        #                                        ))
+    	#	      logfile.close()
+    	goodflag=False
+    	for sublist in temp_vec:
+    		if sublist[0]==ardusipm and sublist[1]==True:
+    			goodflag=True
+    	
+    	# Saving raw data into raw datafiles
+    	if goodflag==True:
+    		logfile=open("log_test_"+ardusipm+".TXT", "a+")
+    		logfile.write(text)
+    		logfile.close()
+    	else:
+    		print(temp_vec)
                 
 
     
