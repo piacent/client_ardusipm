@@ -75,6 +75,7 @@ client.loop_start()
 time.sleep(1)
 #Check message
 client.publish("daqardusipm/pyclient_task", "start_daq ARDU_BLU")
+time.sleep(0.5)
 
 file_path = "blu.TXT"
 l=file_len(file_path)
@@ -90,6 +91,7 @@ with open(file_path, 'r') as logfile:
     	 	if n_prev!=n_cont:
     	 		print(str(n_cont*10)+' % sent.')
     	 	if i_cont==l-1:
+    	 		time.sleep(0.5)
     	 		client.publish("daqardusipm/pyclient_task", "end_daq ARDU_BLU")
     	 		print("DAQ ended.")
     	 	time.sleep(0.01)
