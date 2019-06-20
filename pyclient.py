@@ -6,18 +6,18 @@
 
 # ========== HERE'S HOW THIS SCRIPT WILL WORK ==========
 
-# To start a daq connection you must subscribe to:
+# To start a daq connection you must publish to:
 #	daqardusipm/pyclient_task
-# and publish a massage as follows:
+# sending a message as follows:
 #       start_daq nameoftheArduSiPM
 # A this point any message you want to be processed
 # must to be published under the topic:
 #	daqardusipm/nameoftheArduSiPM
 # (N.B. the DAQ will start only after the time 
 #  of the ArduSIPM will be set)
-# If you want to stop daq you must subscribe to:
+# If you want to stop daq you must publish to:
 #	daqardusipm/pyclient_task
-# and publish a massage as follows:
+# sending a massage as follows:
 #       end_daq nameoftheArduSiPM
 
 # If you want to disconnect the pyclient
