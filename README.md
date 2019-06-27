@@ -49,5 +49,5 @@ the files themselves).
 
 **N.B**. All the scripts are tested only on Linux OS  (Ubuntu 18)
 for now (although they seem to work also on other platforms).
-Currently, for testing, it will connect to the public mqtt broker
+Currently, for testing, they will connect to the public mqtt broker
 *broker.hivemq.com.*
