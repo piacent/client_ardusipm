@@ -210,8 +210,9 @@ client.publish("daqardusipm/pyclient_task", "Client connected to broker.")
 
 
 # Waiting for disconnection input (one check per second)
-# It will also look for changing in
-# the global variable 'leap_second' every 3600 s:
+# It will also look for changing in the global
+# variable 'leap_second' (now 'leap_second' is not
+# used, but can be exploited in future implementations)
 
 while test_disconnection:
 	if time_expiration[3]==False:
