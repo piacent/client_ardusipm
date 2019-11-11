@@ -172,7 +172,7 @@ def take_n_event(which_tok):			# Number of events in a line is equivalent
 						# to the most frequent token (e.g. if I have
 						# 2 't' or 2 'T' i have 2 events; this is
 						# because '$' is not always the number of events
-						# and beacause '$' is not present in cosmic formatting
+						# and because '$' is not present in cosmic formatting
 	n_occ = []
 	for tok in which_tok:
 		 n_occ.append(token_occurrence(which_tok, tok))
