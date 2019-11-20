@@ -19,7 +19,7 @@
 # nameofthelogfile#2
 #     [...]
 # nameoftheoutputfile
-# timewindow #for coincidences (in us)
+# timewindow #for coincidences (in ns)
 
 # After this try run: $ python3 converter.py < config.txt
 
@@ -46,16 +46,21 @@ hexatokens = ['t', 'T', 'v']
 
 # Update leap_second
 def update_leap():
+	global leap_second
 	print("\nUpdating leap seconds...")
 	link = "ftp://ftp.nist.gov/pub/time/leap-seconds.list"
-	f = urllib.request.urlopen(link)
-	global leap_second
-	for line in f:
-		text = line.decode("utf-8")
-		if text[0]!='#':
-			a, b, *c = text.split('\t')
-	leap_second=int(b)
-	print("Leap seconds updated: leap_second = "+str(leap_second)+" s")
+	try:
+		f = urllib.request.urlopen(link, timeout=10)
+		for line in f:
+			text = line.decode("utf-8")
+			if text[0]!='#':
+				a, b, *c = text.split('\t')
+		leap_second=int(b)
+		print("Leap seconds updated: leap_second = "+str(leap_second)+" s")
+	except:
+		print("WARNING: Unable to update leap seconds, which are now set to 0.")
+		leap_second = 0
+	
 	
 
 # Function useful to determine when the detector time is set
@@ -83,7 +88,20 @@ def get_SN(filelog):
 
 # Functions useful for coincidences analysis
 def get_time(total,i):
-	return (total[i])[-3]+0.000001*int((total[i])[2])
+	return (total[i])[-3] % 86400 + 0.000001*float((total[i])[2])
+def get_time_diff(total, i, j): # Assuming time window for coincidences always
+				# smaller than 1s
+	t_i = get_time(total, i)
+	t_j = get_time(total, j)
+	intt_i = (total[i])[-3]
+	intt_j = (total[j])[-3]
+	tdiff    = abs(t_i - t_j)
+	inttdiff = abs(intt_i - intt_j)
+	if inttdiff==1 and int(tdiff)==86399:
+		ret = 86400 + min(t_i, t_j) - max(t_i, t_j)
+	else:
+		ret = tdiff
+	return ret;
 def get_det(total, i):
 	return (total[i])[-1]	
 def time_togps(utc):
@@ -284,9 +302,15 @@ def parse_detector(filelog):
 								v.append(time_togps(v[1]))
 								v.append('')
 								v.append(nameofDet)
-							# The line must have a t (regular format)
+							# If the line has a 't' (regular format)
 							if v[2]!= None and v[2]!='-':
 								total.append(v)
+							# If the line does not have a 't' but has a 'T', a
+							# corrispondent 't' is produced with a ns precision
+							elif (v[2]== None or v[2]=='-') and (v[3] != None and v[3]!= '-') :
+								v[2] = str(int(int(v[3])*1000000000./int(v[7]))/1000.)
+								total.append(v)
+							
 							del v
 							
 			# This is for cosmic formatting	
@@ -325,7 +349,7 @@ def parse_detector(filelog):
 							v.append('')
 							v.append(nameofDet)
 							
-							v[2] = str(round(float(v[3])/float(v[7])*1000000.))
+							v[2] = str(int(float(v[3])/float(v[7])*1000000.))
 							
 							if v[2]!= None and v[2]!='-':
 								total.append(v)
@@ -344,24 +368,22 @@ def main(filelog, fileout, eps, nDet):
 		total = total + parse_detector(filelog[i])
 	
 	# Rearrange events by time
-	total.sort(key=lambda x: x[-3]+0.000001*int(x[2]))
+	total.sort(key=lambda x: x[-3] + 0.000001*float(x[2]))
 	
 	# Setting the width of the window in which to look for coincidences
 	width=20 # Lines
 	
 	# Check for coincidences
 	for i in range(0,len(total)):
-		t_i = get_time(total, i)
 		det_i = get_det(total, i)
 		for j in range(0, width+1):
 			if (j+i) < len(total):
-				t_ij = get_time(total, j+i)
-				tdiff=abs(t_i-t_ij)
-				if tdiff<(eps*0.000001) and j!=0 and get_det(total,j+i)!=det_i:
+				tdiff= get_time_diff(total, i, j+i)
+				if tdiff<(eps*1.e-9) and j!=0 and get_det(total,j+i)!=det_i:
 					(total[i])[-2]=(total[i])[-2]+',*'
 					(total[j+i])[-2]=(total[j+i])[-2]+',*'
-					(total[i])[-2]=(total[i])[-2]+',-'+str(int(round(tdiff*1000000,0)))
-					(total[j+i])[-2]=(total[j+i])[-2]+','+str(int(round(tdiff*1000000,0)))
+					(total[i])[-2]=(total[i])[-2]+',-'+str(int(round(tdiff*1.e9)))
+					(total[j+i])[-2]=(total[j+i])[-2]+','+str(int(round(tdiff*1.e9)))
 	
 	# Generating output file
 	ffileout=open(fileout, 'w')
@@ -389,7 +411,7 @@ if __name__ == '__main__':
 	for i in range(0, nDet):
 		filelog.append(input("Insert the path of the .TXT file #"+str(i+1)+":"))
 	fileout  = input("Insert the path of the output file:")
-	eps = input("Insert time window for coincidences in us:")
+	eps = input("Insert time window for coincidences in ns:")
 	update_leap()
 	# Debug print
 	print(filelog, fileout, eps, nDet)
