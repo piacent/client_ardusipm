@@ -42,7 +42,7 @@ import os
 # Global variables for handling disconnection (be careful in changing
 # what regards this variables) or leap seconds
 test_disconnection = True
-uncorrect_task_out = "The task I'm receiving is not correct."
+uncorrect_task_out = "The task I'm receiving is unknown."
 leap_second  = 0
 time_expiration=[-1,-1,-1, False]
 
@@ -130,11 +130,11 @@ def on_message(client, userdata, msg):
  		# the daq flag of the ArduSiPM to False
     		index_to_end=temp_vec.index([ardusipmtoend, True])
     		temp_vec[index_to_end]=[ardusipmtoend, False]
-    	elif text==uncorrect_task_out:
-    		pass
     	else:
-    		client.publish("daqardusipm/pyclient_task", uncorrect_task_out)
-    else:
+    		print(uncorrect_task_out, " Task received = '", text, "'");
+    		# If you want to publish uncorrect_task_out decomment the following line:
+    		# client.publish("daqardusipm/pyclient_task", uncorrect_task_out)
+    elif (str(msg.topic)!="daqardusipm/pyclient_task") and "daqardusipm/" in str(msg.topic) :
     	top=str(msg.topic)
     	ardusipm=top.replace("daqardusipm/", '')
     	# The following is only to avoid taking data
@@ -190,6 +190,8 @@ def on_message(client, userdata, msg):
     		logfile.close()
     	else:
     		print(temp_vec)
+    else:
+    	print("WARNING: something wrong in topic handling.");
                 
 
     
